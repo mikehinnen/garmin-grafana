@@ -74,3 +74,28 @@ ActivitySummary, ActivityGPS, DailyAverage, Sleep, SleepStages, HeartRate, Steps
 
 - `version.release.yml`: Triggered on `v*` tags, builds multi-arch Docker images, pushes to Docker Hub and GHCR
 - Multi-stage Dockerfile using `uv` for dependency management, runs as non-root `appuser`
+
+## Local Setup Notes
+
+### First-time Garmin Login
+```bash
+# Create token directory and run interactive login
+mkdir -p garminconnect-tokens && chmod 777 garminconnect-tokens
+docker run -it --rm -v ./garminconnect-tokens:/home/appuser/.garminconnect \
+  -v ./login_garmin.py:/app/login_garmin.py \
+  thisisarpanghosh/garmin-fetch-data:latest python /app/login_garmin.py
+```
+
+### Verify Data in InfluxDB
+```bash
+docker exec influxdb influx -database GarminStats -execute "SHOW MEASUREMENTS"
+docker exec influxdb influx -database GarminStats -execute "SELECT * FROM HeartRateIntraday LIMIT 5"
+```
+
+### Troubleshooting Grafana
+- Data fetcher works and writes to InfluxDB (verified: 19 measurements)
+- Datasource "Garmin-InfluxDB" connects successfully
+- **Known issue**: Dashboard panels show "No data" despite data being present
+- Check time range (top right) - try "Last 7 days"
+- Check timezone setting matches your local timezone
+- Test queries in Explore: `SELECT * FROM HeartRateIntraday WHERE time > now() - 7d`
